@@ -5,6 +5,7 @@ import com.github.scribejava.core.model.OAuthRequest
 import com.github.scribejava.core.model.Verb
 import com.github.scribejava.apis.VkontakteApi
 import com.github.scribejava.core.oauth.OAuth20Service
+import com.redis.RedisClient
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.json4s._
 import org.json4s.native.JsonMethods._
@@ -15,8 +16,9 @@ import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka.KafkaUtils
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
-class Crawl(apiKey: String, apiSecret: String){
-  val sparkConf: SparkConf = new SparkConf().setMaster("spark://localhost:7077").setAppName("KafkaCrawler")
+object Crawl {
+
+  val sparkConf: SparkConf = new SparkConf().setMaster("local[*]").setAppName("KafkaCrawler")
   val ssc = new StreamingContext(sparkConf, Seconds(2))
 
   val kafkaStream: DStream[String] = {
@@ -45,37 +47,39 @@ class Crawl(apiKey: String, apiSecret: String){
     "org.apache.kafka.common.serialization.StringSerializer")
   val kafkaSink: Broadcast[KafkaSink] = ssc.sparkContext.broadcast(KafkaSink(props))
 
+  def start(key:String, secret: String): Unit = {
 
-  // Define the actual data flow of the streaming job
-  kafkaStream
-    .map(id => {
-      val service: OAuth20Service = (new ServiceBuilder).apiKey(apiKey).apiSecret(apiSecret).build(VkontakteApi.instance)
-      val request = new OAuthRequest(Verb.GET, s"https://api.vk.com/method/friends.get?user_id=$id&v=5.68")
-      val response = service.execute(request)
-      val friendsList = {
-        if (!response.isSuccessful) None
-        else
-          response.getBody match {
-            case a: String if a.contains("error") => None
-            case a: String => Some(a)
-          }
-      }
-      service.close()
-      friendsList
-    })
-    .flatMap(friendsList => friendsList.map(resp => (parse(resp) \\ "items").children.map(js => js.values.toString)))
-    .foreachRDD ( rdd => {
-      rdd.foreach { message =>
-        message.foreach(m => if (RedisConnection.conn.sadd("test", m).contains(1L)) kafkaSink.value.send(outputTopic, m))
-      }
-    })
-  // Run the streaming job
-  def start(): Unit ={
+    // Define the actual data flow of the streaming job
+    kafkaStream
+      .flatMap(id => {
+        val service: OAuth20Service = (new ServiceBuilder).apiKey(key).apiSecret(secret).build(VkontakteApi.instance)
+        val friendsLists = {
+          val request = new OAuthRequest(Verb.GET, s"https://api.vk.com/method/friends.get?user_id=$id&v=5.68")
+          val response = service.execute(request)
+          if (!response.isSuccessful) None
+          else
+            response.getBody match {
+              case a: String if a.contains("error") => None
+              case a: String => Some(a)
+            }
+        }
+        service.close()
+        friendsLists
+      })
+      .map(friendsList => (parse(friendsList) \\ "items").children.map(js => js.values.toString))
+      .foreachRDD ( rdd => {
+        rdd.foreach { message =>
+          message.foreach(m => if (RedisConnection.conn.sadd("test", m).contains(1L))
+            kafkaSink.value.send(outputTopic, m))
+        }
+      })
+
+    // Run the streaming job
     ssc.start()
     ssc.awaitTermination()
   }
 }
 
-object Crawl {
-  def apply(apiKey: String, apiSecret: String): Crawl = new Crawl(apiKey, apiSecret)
-}
+//object Crawl {
+//  def apply(apiKey: String, apiSecret: String): Crawl = new Crawl(apiKey, apiSecret)
+//}

@@ -25,7 +25,8 @@ object KafkaSink {
   }
 }
 
-
 object RedisConnection extends Serializable {
   lazy val conn: RedisClient = new RedisClient("localhost", 6379)
 }
+
+
