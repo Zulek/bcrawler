@@ -26,9 +26,9 @@ First install [Apache Maven](https://maven.apache.org/download.cgi)
 
 Use `mvn package` inside folder to build project, it will create jar with dependencies in /target/ folder
 
-Install [Apache Spark 2.2.0](https://spark.apache.org/downloads.html)
-
 ### How to run
+
+Install [Apache Spark 2.2.0](https://spark.apache.org/downloads.html)
 
 Download [Apache Kafka](https://kafka.apache.org/downloads) and [Redis](https://redis.io/download) ([on Windows](https://github.com/MicrosoftArchive/redis))
 
