@@ -15,12 +15,7 @@ import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka.KafkaUtils
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
-object Crawl {
-  def main(args: Array[String]): Unit = {
-    if (args.length < 2) {
-      System.err.println("Usage: Crawl <apiKey / ID ВК приложения> <apiSecret / Защищённый ключ>")
-      System.exit(1)
-    }
+class Crawl(key:String, secret:String)  {
     val sparkConf: SparkConf = new SparkConf().setAppName("KafkaCrawler")
     val ssc = new StreamingContext(sparkConf, Seconds(2))
 
@@ -36,7 +31,7 @@ object Crawl {
         KafkaUtils.createStream(ssc, kafkaParams("zookeeper.connect"), kafkaParams("group.id"), Map(inputTopic -> 1), StorageLevel.MEMORY_ONLY_SER).map(_._2)
       }
       val unifiedStream = ssc.union(streams)
-      val sparkProcessingParallelism = 1 // You'd probably pick a higher value than 1 in production.
+      val sparkProcessingParallelism = 1
       unifiedStream.repartition(sparkProcessingParallelism)
     }
 
@@ -53,7 +48,7 @@ object Crawl {
     // Define the actual data flow of the streaming job
     kafkaStream
       .flatMap(id => {
-        val service: OAuth20Service = (new ServiceBuilder).apiKey(args(0)).apiSecret(args(1)).build(VkontakteApi.instance)
+        val service: OAuth20Service = (new ServiceBuilder).apiKey(key).apiSecret(secret).build(VkontakteApi.instance)
         val request = new OAuthRequest(Verb.GET, s"https://api.vk.com/method/friends.get?user_id=$id&v=5.68")
         val response = service.execute(request)
         val result = if (!response.isSuccessful) None
@@ -73,8 +68,13 @@ object Crawl {
         }
       })
 
-    // Run the streaming job
-    ssc.start()
-    ssc.awaitTermination()
-  }
+    def start(): Unit = {
+      // Run the streaming job
+      ssc.start()
+      ssc.awaitTermination()
+    }
+}
+
+object Crawl {
+  def apply(key: String, secret: String): Crawl = new Crawl(key, secret)
 }
