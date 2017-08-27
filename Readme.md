@@ -21,8 +21,9 @@ Test crawling on VK, takes only user ids.
 ## BFS
 Breadth First Search algorithm works for social networks as almost all users have lists of friends. We can use algorithm and assume user a node and it has edges to other nodes (friends list).
 ## Commands
-First install [Apache Maven](https://maven.apache.org/download.cgi)
 ### How to build
+First install [Apache Maven](https://maven.apache.org/download.cgi)
+
 Use `mvn package` inside folder to build project, it will create jar with dependencies in /target/ folder
 
 Install [Apache Spark 2.2.0](https://spark.apache.org/downloads.html)
