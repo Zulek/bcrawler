@@ -4,12 +4,17 @@ Test crawling on VK, takes only user ids.
 ![Arch](https://github.com/Zulek/bcrawler/blob/master/arch.png)
 
 1. Application consumes from Apache Kafka  
-![1](https://github.com/Zulek/bcrawler/blob/master/Consumer.png)
+
 2. For consumed id fetches friends list
+
 ![2](https://github.com/Zulek/bcrawler/blob/master/vkfetch.png)
+
 3. Turns json response to `List[String]`
+
 ![3](https://github.com/Zulek/bcrawler/blob/master/json.png)
+
 4. Appends each id in list to Redis Set and if it not exists already in Set appends to Apache Kafka thus only unique id is produced  
+
 ![4](https://github.com/Zulek/bcrawler/blob/master/rediskafkaprod.png)
 
 
