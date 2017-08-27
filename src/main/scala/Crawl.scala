@@ -50,23 +50,20 @@ object Crawl {
       "org.apache.kafka.common.serialization.StringSerializer")
     val kafkaSink: Broadcast[KafkaSink] = ssc.sparkContext.broadcast(KafkaSink(props))
 
-
     // Define the actual data flow of the streaming job
     kafkaStream
       .flatMap(id => {
         val service: OAuth20Service = (new ServiceBuilder).apiKey(args(0)).apiSecret(args(1)).build(VkontakteApi.instance)
-        val friendsLists = {
-          val request = new OAuthRequest(Verb.GET, s"https://api.vk.com/method/friends.get?user_id=$id&v=5.68")
-          val response = service.execute(request)
-          if (!response.isSuccessful) None
-          else
-            response.getBody match {
-              case a: String if a.contains("error") => None
-              case a: String => Some(a)
-            }
-        }
+        val request = new OAuthRequest(Verb.GET, s"https://api.vk.com/method/friends.get?user_id=$id&v=5.68")
+        val response = service.execute(request)
+        val result = if (!response.isSuccessful) None
+        else
+          response.getBody match {
+            case a: String if a.contains("error") => None
+            case a: String => Some(a)
+          }
         service.close()
-        friendsLists
+        result
       })
       .map(friendsList => (parse(friendsList) \\ "items").children.map(js => js.values.toString))
       .foreachRDD ( rdd => {
