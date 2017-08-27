@@ -52,4 +52,4 @@ Build and start redis
 
 Finally provide 2 arguments: API Key (ID приложения), API Secret (Защищённый ключ) of your VK application and run command inside Spark folder
 
-`./spark-sumbit --class Crawl --master local[*] /path/to/bcrawler/target/crawer-1.1-jar-with-dependencies.jar <APIKEY> <APISECRET>`
+`./spark-sumbit --class RunCrawler --master local[*] /path/to/bcrawler/target/crawer-1.1-jar-with-dependencies.jar <APIKEY> <APISECRET>`
