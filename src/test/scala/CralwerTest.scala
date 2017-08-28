@@ -26,24 +26,24 @@ class CralwerTest extends FunSuite with StreamingSuiteBase with StreamingActionB
   def jsonTest(f: DStream[JsonInput]): DStream[List[Int]] = {
     f.map(friendsList => (parse(friendsList) \\ "items").children.map(js => js.values.toString.toInt))
   }
+//
+//  test("redis set pop test") {
+//    val input = List(List("hi"), List("bye"))
+//    val acc = sc.accumulator(0)
+//    val cw = countWordsLength(acc)
+//    runAction(input, cw)
+//    assert(2 === acc.value)
+//  }
 
-  test("redis set pop test") {
-    val input = List(List("hi"), List("bye"))
-    val acc = sc.accumulator(0)
-    val cw = countWordsLength(acc)
-    runAction(input, cw)
-    assert(2 === acc.value)
-  }
-
-  def countWordsLength(acc: Accumulator[Int]): (DStream[String] => Unit) = {
-    def c(input: DStream[String]): Unit = {
-      input.foreachRDD ( rdd => {
-        rdd.foreach { message =>
-            acc+=RedisConnection.conn.sadd("redistest", message).get.toInt
-            RedisConnection.conn.spop("redistest")
-        }
-      })
-    }
-    c
-  }
+//  def countWordsLength(acc: Accumulator[Int]): (DStream[String] => Unit) = {
+//    def c(input: DStream[String]): Unit = {
+//      input.foreachRDD ( rdd => {
+//        rdd.foreach { message =>
+//            acc+=RedisConnection.conn.sadd("redistest", message).get.toInt
+//            RedisConnection.conn.spop("redistest")
+//        }
+//      })
+//    }
+//    c
+//  }
 }

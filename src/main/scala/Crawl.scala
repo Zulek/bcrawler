@@ -15,8 +15,20 @@ import org.apache.spark.streaming.dstream.DStream
 import org.apache.spark.streaming.kafka.KafkaUtils
 import org.apache.spark.streaming.{Seconds, StreamingContext}
 
-class Crawl(key:String, secret:String)  {
-    val sparkConf: SparkConf = new SparkConf().setAppName("KafkaCrawler")
+/** VK Crawler.
+  *
+  *  Using API key and secret from VK application Crawler starts
+  *  consuming ids from Apache Kafka, fetches friends of current id and pushes into redis and kafka if its not in redis.
+  *  To initialize crawler provide key and secret as arguments
+  */
+object Crawl {
+  def main(args: Array[String]): Unit = {
+    if (args.length < 2) {
+      System.err.println("Usage: Crawl <apiKey / ID ВК приложения> <apiSecret / Защищённый ключ>")
+      System.exit(1)
+    }
+    val (key, secret) = (args(0),args(1))
+    val sparkConf: SparkConf = new SparkConf().setAppName("KafkaCrawler").setMaster("local[*]")
     val ssc = new StreamingContext(sparkConf, Seconds(2))
 
     val kafkaStream: DStream[String] = {
@@ -43,38 +55,25 @@ class Crawl(key:String, secret:String)  {
       "org.apache.kafka.common.serialization.StringSerializer")
     props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
       "org.apache.kafka.common.serialization.StringSerializer")
+
     val kafkaSink: Broadcast[KafkaSink] = ssc.sparkContext.broadcast(KafkaSink(props))
+    val service: Broadcast[OAuthServiceLazy] = ssc.sparkContext.broadcast(OAuthServiceLazy(key,secret))
+    val redis: Broadcast[RedisLazy] = ssc.sparkContext.broadcast(RedisLazy())
 
-    // Define the actual data flow of the streaming job
     kafkaStream
-      .flatMap(id => {
-        val service: OAuth20Service = (new ServiceBuilder).apiKey(key).apiSecret(secret).build(VkontakteApi.instance)
-        val request = new OAuthRequest(Verb.GET, s"https://api.vk.com/method/friends.get?user_id=$id&v=5.68")
-        val response = service.execute(request)
-        val result = if (!response.isSuccessful) None
-        else
-          response.getBody match {
-            case a: String if a.contains("error") => None
-            case a: String => Some(a)
-          }
-        service.close()
-        result
-      })
+      .flatMap(id => service.value.send(id))
       .map(friendsList => (parse(friendsList) \\ "items").children.map(js => js.values.toString))
-      .foreachRDD ( rdd => {
+      .foreachRDD ( rdd =>
         rdd.foreach { message =>
-          message.foreach(m => if (RedisConnection.conn.sadd("test", m).contains(1L))
-            kafkaSink.value.send(outputTopic, m))
+          message.foreach{m =>
+            if (redis.value.send(m).contains(1L))
+              kafkaSink.value.send(outputTopic, m)
+          }
         }
-      })
+      )
 
-    def start(): Unit = {
-      // Run the streaming job
-      ssc.start()
-      ssc.awaitTermination()
-    }
-}
-
-object Crawl {
-  def apply(key: String, secret: String): Crawl = new Crawl(key, secret)
+    // Run the streaming job
+    ssc.start()
+    ssc.awaitTermination()
+  }
 }
