@@ -1,10 +1,5 @@
 import java.util
 
-import com.github.scribejava.core.builder.ServiceBuilder
-import com.github.scribejava.core.model.OAuthRequest
-import com.github.scribejava.core.model.Verb
-import com.github.scribejava.apis.VkontakteApi
-import com.github.scribejava.core.oauth.OAuth20Service
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.json4s._
 import org.json4s.native.JsonMethods._
@@ -28,7 +23,7 @@ object Crawl {
       System.exit(1)
     }
     val (key, secret) = (args(0),args(1))
-    val sparkConf: SparkConf = new SparkConf().setAppName("KafkaCrawler").setMaster("local[*]")
+    val sparkConf: SparkConf = new SparkConf().setAppName("KafkaCrawler")
     val ssc = new StreamingContext(sparkConf, Seconds(2))
 
     val kafkaStream: DStream[String] = {
